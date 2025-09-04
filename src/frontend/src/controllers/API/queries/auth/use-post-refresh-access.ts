@@ -22,10 +22,8 @@ export const useRefreshAccessToken: useMutationFunctionType<
   const autoLogin = useAuthStore((state) => state.autoLogin);
 
   async function refreshAccess(): Promise<IRefreshAccessToken> {
+    // Simple POST to /refresh - cookies are automatically sent with withCredentials: true
     const res = await api.post<IRefreshAccessToken>(`${getURL("REFRESH")}`);
-    const cookies = new Cookies();
-    setAuthCookie(cookies, LANGFLOW_REFRESH_TOKEN, res.data.refresh_token);
-
     return res.data;
   }
 

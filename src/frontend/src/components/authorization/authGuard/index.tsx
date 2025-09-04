@@ -32,7 +32,8 @@ export const ProtectedRoute = ({ children }) => {
       mutateRefresh();
     };
 
-    if (autoLogin !== undefined && !autoLogin && isAuthenticated) {
+    // Enable automatic refresh for both auto-login and manual login scenarios
+    if (isAuthenticated) {
       const intervalId = setInterval(intervalFunction, accessTokenTimer * 1000);
       intervalFunction();
       return () => clearInterval(intervalId);

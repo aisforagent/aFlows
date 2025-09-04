@@ -37,6 +37,12 @@ export const useGetAutoLogin: useQueryFunctionType<undefined, undefined> = (
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   async function getAutoLoginFn(): Promise<null> {
+    // Check if auto_login is disabled globally
+    if (localStorage.getItem("AUTO_LOGIN_DISABLED") === "1") {
+      setAutoLogin(false);
+      return null;
+    }
+
     try {
       const response = await api.get<Users>(`${getURL("AUTOLOGIN")}`);
       const user = response.data;
@@ -51,6 +57,12 @@ export const useGetAutoLogin: useQueryFunctionType<undefined, undefined> = (
       const error = e as AxiosError;
       if (error.name !== "CanceledError") {
         setAutoLogin(false);
+        
+        // If backend returns 400/404/405, permanently disable client attempts
+        if ([400, 404, 405].includes(error?.response?.status)) {
+          window.localStorage.setItem("AUTO_LOGIN_DISABLED", "1");
+        }
+        
         if (!isLoginPage) {
           await handleAutoLoginError();
         }

@@ -50,8 +50,8 @@ export default defineConfig(({ mode }) => {
         envLangflow.ACCESS_TOKEN_EXPIRE_SECONDS ?? 60,
       ),
       "process.env.CI": JSON.stringify(envLangflow.CI ?? false),
-      "process.env.LANGFLOW_AUTO_LOGIN": JSON.stringify(
-        envLangflow.LANGFLOW_AUTO_LOGIN ?? true,
+      "import.meta.env.VITE_LANGFLOW_AUTO_LOGIN": JSON.stringify(
+        envLangflow.LANGFLOW_AUTO_LOGIN ?? false,
       ),
       "process.env.LANGFLOW_FEATURE_MCP_COMPOSER": JSON.stringify(
         envLangflow.LANGFLOW_FEATURE_MCP_COMPOSER ?? "true",

@@ -10,6 +10,7 @@ import { Cookies } from "react-cookie";
 import { twMerge } from "tailwind-merge";
 import {
   DRAG_EVENTS_CUSTOM_TYPESS,
+  LANGFLOW_REFRESH_TOKEN,
   MESSAGES_TABLE_ORDER,
   MODAL_CLASSES,
   SHORTCUT_KEYS,
@@ -1016,9 +1017,13 @@ export const setAuthCookie = (
   tokenName: string,
   value: string,
 ) => {
+  // Use different cookie settings for refresh token vs access token
+  const isRefreshToken = tokenName === LANGFLOW_REFRESH_TOKEN;
+  
   cookies.set(tokenName, value, {
     path: "/",
     secure: true,
-    sameSite: "strict",
+    sameSite: isRefreshToken ? "none" : "strict",
+    // Note: httpOnly cannot be set from JavaScript, it's server-side only
   });
 };
