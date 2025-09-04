@@ -54,9 +54,9 @@ class AuthSettings(BaseSettings):
     SUPERUSER: str = DEFAULT_SUPERUSER
     SUPERUSER_PASSWORD: str = DEFAULT_SUPERUSER_PASSWORD
 
-    REFRESH_SAME_SITE: Literal["lax", "strict", "none"] = "none"
+    REFRESH_SAME_SITE: Literal["lax", "strict", "none"] = "lax"
     """The SameSite attribute of the refresh token cookie."""
-    REFRESH_SECURE: bool = True
+    REFRESH_SECURE: bool = False
     """The Secure attribute of the refresh token cookie."""
     REFRESH_HTTPONLY: bool = True
     """The HttpOnly attribute of the refresh token cookie."""

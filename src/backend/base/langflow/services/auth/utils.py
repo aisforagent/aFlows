@@ -17,7 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocket
 
 from langflow.services.database.models.api_key.crud import check_key
-from langflow.services.database.models.user.crud import get_user_by_id, get_user_by_username, update_user_last_login_at
+from langflow.services.database.models.user.crud import get_user_by_id, get_user_by_id_cached, get_user_by_username, update_user_last_login_at
 from langflow.services.database.models.user.model import User, UserRead
 from langflow.services.deps import get_db_service, get_session, get_settings_service, session_scope
 
@@ -208,7 +208,7 @@ async def get_current_user_by_jwt(
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 
-    user = await get_user_by_id(db, user_id)
+    user = await get_user_by_id_cached(db, user_id)
     if user is None or not user.is_active:
         logger.info("User not found or inactive.")
         raise HTTPException(

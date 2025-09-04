@@ -17,13 +17,25 @@ import useAlertStore from "../../stores/alertStore";
 import useFlowStore from "../../stores/flowStore";
 import { checkDuplicateRequestAndStoreRequest } from "./helpers/check-duplicate-requests";
 import { useLogout, useRefreshAccessToken } from "./queries/auth";
+import { clearMeCache } from "@/lib/me";
 
 // Create a new Axios instance
 const api: AxiosInstance = axios.create({
   baseURL: baseURL,
+  withCredentials: true,  // Send cookies with requests
 });
 
 const _cookies = new Cookies();
+
+// Global refresh token mutex to prevent concurrent refresh requests
+let isRefreshInProgress = false;
+let refreshPromise: Promise<void> | null = null;
+const pendingRequests: Array<{
+  error: AxiosError;
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+}> = [];
+
 function ApiInterceptor() {
   const autoLogin = useAuthStore((state) => state.autoLogin);
   const setErrorData = useAlertStore((state) => state.setErrorData);
@@ -88,13 +100,10 @@ function ApiInterceptor() {
             return Promise.reject(error);
           }
 
-          await tryToRenewAccessToken(error);
-
-          const accessToken = customGetAccessToken();
-
-          if (!accessToken && error?.config?.url?.includes("login")) {
-            return Promise.reject(error);
-          }
+          // Use the serialized refresh token logic
+          return new Promise((resolve, reject) => {
+            tryToRenewAccessTokenSerialized(error, resolve, reject);
+          });
         }
 
         await clearBuildVerticesState(error);
@@ -208,24 +217,81 @@ function ApiInterceptor() {
     return true;
   }
 
-  async function tryToRenewAccessToken(error: AxiosError) {
-    if (isLoginPage) return;
+  function tryToRenewAccessTokenSerialized(
+    error: AxiosError,
+    resolve: (value: any) => void,
+    reject: (reason?: any) => void
+  ) {
+    if (isLoginPage) {
+      reject(error);
+      return;
+    }
+
+    // Add this request to the pending queue
+    pendingRequests.push({ error, resolve, reject });
+
+    // If refresh is already in progress, just wait
+    if (isRefreshInProgress) {
+      return;
+    }
+
+    // Start the refresh process
+    isRefreshInProgress = true;
+    
+    // Clear user cache when refreshing
+    clearMeCache();
+    
     if (error.config?.headers) {
       for (const [key, value] of Object.entries(customHeaders)) {
         error.config.headers[key] = value;
       }
     }
-    mutationRenewAccessToken(undefined, {
-      onSuccess: async () => {
-        setAuthenticationErrorCount(0);
-        await remakeRequest(error);
-        setAuthenticationErrorCount(0);
-      },
-      onError: (error) => {
-        console.error(error);
-        mutationLogout();
-        return Promise.reject("Authentication error");
-      },
+    
+    refreshPromise = new Promise<void>((resolveRefresh, rejectRefresh) => {
+      mutationRenewAccessToken(undefined, {
+        onSuccess: async () => {
+          try {
+            setAuthenticationErrorCount(0);
+            
+            // Process all pending requests
+            const requestsToProcess = [...pendingRequests];
+            pendingRequests.length = 0; // Clear the queue
+            
+            for (const { error: pendingError, resolve: pendingResolve, reject: pendingReject } of requestsToProcess) {
+              try {
+                const result = await remakeRequest(pendingError);
+                pendingResolve(result);
+              } catch (retryError) {
+                pendingReject(retryError);
+              }
+            }
+            
+            setAuthenticationErrorCount(0);
+            resolveRefresh();
+          } catch (err) {
+            rejectRefresh(err);
+          } finally {
+            isRefreshInProgress = false;
+            refreshPromise = null;
+          }
+        },
+        onError: (refreshError) => {
+          console.error("Refresh token error:", refreshError);
+          
+          // Reject all pending requests
+          const requestsToReject = [...pendingRequests];
+          pendingRequests.length = 0; // Clear the queue
+          
+          for (const { reject: pendingReject } of requestsToReject) {
+            pendingReject(new Error("Authentication error"));
+          }
+          
+          mutationLogout();
+          isRefreshInProgress = false;
+          refreshPromise = null;
+          rejectRefresh(refreshError);
+        },
+      });
     });
   }
 

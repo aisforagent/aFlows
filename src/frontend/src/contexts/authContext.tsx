@@ -87,13 +87,18 @@ export function AuthProvider({ children }): React.ReactElement {
     setAuthCookie(cookies, LANGFLOW_AUTO_LOGIN_OPTION, autoLogin);
     setLocalStorage(LANGFLOW_ACCESS_TOKEN, newAccessToken);
 
-    if (refreshToken) {
-      setAuthCookie(cookies, LANGFLOW_REFRESH_TOKEN, refreshToken);
-    }
+    // Don't set refresh token cookie - backend handles this securely
+    // if (refreshToken) {
+    //   setAuthCookie(cookies, LANGFLOW_REFRESH_TOKEN, refreshToken);
+    // }
     setAccessToken(newAccessToken);
     setIsAuthenticated(true);
-    getUser();
-    getGlobalVariables();
+    
+    // Add a small delay to ensure token is properly set before making API calls
+    setTimeout(() => {
+      getUser();
+      getGlobalVariables();
+    }, 10);
   }
 
   function storeApiKey(apikey: string) {
